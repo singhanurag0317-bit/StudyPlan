@@ -63,6 +63,7 @@ const extractBtn = document.getElementById('extract-btn');
 const clearBtn = document.getElementById('clear-btn');
 const addItemsBtn = document.getElementById('add-btn');
 const downloadBtn = document.getElementById('download-btn');
+const calendarDownloadBtn = document.getElementById('calendar-download-btn');
 const newTaskBtn = document.getElementById('add-task-btn');
 
 
@@ -384,6 +385,30 @@ async function downloadData() {
     }
 }
 
+async function downloadCalendar() {
+    try {
+        const response = await fetch('/api/download/calendar');
+
+        if (!response.ok) {
+            throw new Error('Failed to export calendar');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'studyplan_calendar.ics';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+
+    } catch (error) {
+        console.error(error);
+        alert('Failed to export calendar');
+    }
+}
+
 function renderTasks() {
   const tasks = store.tasks;
   const subjects = store.subjects;
@@ -563,7 +588,7 @@ function renderTasks() {
 
     tasksSection.innerHTML = actionBar +
                              renderGroup(titlePrefix + '⚠ Due soon', dueSoon, 'var(--color-text-danger)', true)
-                             renderGroup(titlePrefix + 'This week', thisWeek, 'var(--color-text-secondary)', true) +
+                             + renderGroup(titlePrefix + 'This week', thisWeek, 'var(--color-text-secondary)', true) +
                              renderGroup(titlePrefix + 'Completed', completed, 'var(--color-text-tertiary)') +
                              emptyState;
   }
@@ -1075,4 +1100,8 @@ addItemsBtn.addEventListener('click', () => {
 
 downloadBtn.addEventListener('click', () => {
   downloadData();
+});
+
+calendarDownloadBtn.addEventListener('click', () => {
+  downloadCalendar();
 });
