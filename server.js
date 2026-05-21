@@ -249,13 +249,17 @@ const ALLOWED_SUBJECT_COLORS = new Set([
   'var(--color-text-secondary)',
 ]);
 
+function isValidColor(color) {
+  return ALLOWED_SUBJECT_COLORS.has(color) || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color);
+}
+
 app.post('/api/subjects', (req, res) => {
   const name = String(req.body?.name || '').trim();
   let color = String(req.body?.color || '').trim() || 'var(--color-text-info)';
   if (!name) {
     return res.status(400).json({ error: 'Subject name is required' });
   }
-  if (!ALLOWED_SUBJECT_COLORS.has(color)) {
+  if (!isValidColor(color)) {
     color = 'var(--color-text-info)';
   }
   const shortCode = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 4) || 'SUB';
@@ -266,6 +270,24 @@ app.post('/api/subjects', (req, res) => {
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       res.status(201).json({ id, name, short_code: shortCode, color });
+    }
+  );
+});
+
+app.put('/api/subjects/:id', (req, res) => {
+  const { color } = req.body;
+  if (!color) {
+    return res.status(400).json({ error: 'Color is required' });
+  }
+  if (!isValidColor(color)) {
+    return res.status(400).json({ error: 'Invalid color format' });
+  }
+  db.run(
+    'UPDATE subjects SET color = ? WHERE id = ?',
+    [color, req.params.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, changes: this.changes });
     }
   );
 });

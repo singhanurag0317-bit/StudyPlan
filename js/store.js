@@ -62,6 +62,41 @@ export const store = {
     }
   },
 
+  updateSubjectColorLocal(subjectId, newColor) {
+    const sub = this.subjects.find(s => String(s.id) === String(subjectId));
+    if (sub) {
+      sub.color = newColor;
+      this.notify();
+    }
+  },
+
+  async updateSubjectColor(subjectId, newColor) {
+    const subIndex = this.subjects.findIndex(s => String(s.id) === String(subjectId));
+    if (subIndex === -1) return;
+
+    const originalColor = this.subjects[subIndex].color;
+
+    // Optimistic update
+    this.subjects[subIndex] = { ...this.subjects[subIndex], color: newColor };
+    this.notify();
+
+    try {
+      const res = await fetch(`/api/subjects/${subjectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color: newColor })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to update subject color');
+      }
+    } catch (e) {
+      console.error('Failed to update subject color', e);
+      // Revert on failure
+      this.subjects[subIndex].color = originalColor;
+      this.notify();
+    }
+  },
+
   // ================= UPDATED FUNCTION =================
   async addTasks(newTasks) {
     try {

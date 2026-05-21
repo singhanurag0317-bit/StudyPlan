@@ -5,6 +5,28 @@ import { analyzeWorkload } from './utils/scheduler.js';
 
 initGlobalErrorBoundary();
 
+function rgbToHex(rgb) {
+  const match = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/);
+  if (!match) return '#000000';
+  const r = parseInt(match[1]).toString(16).padStart(2, '0');
+  const g = parseInt(match[2]).toString(16).padStart(2, '0');
+  const b = parseInt(match[3]).toString(16).padStart(2, '0');
+  return `#${r}${g}${b}`;
+}
+
+function resolveColorToHex(colorStr) {
+  if (!colorStr) return '#000000';
+  if (colorStr.startsWith('#')) return colorStr;
+  
+  const temp = document.createElement('div');
+  temp.style.color = colorStr;
+  document.body.appendChild(temp);
+  const resolved = window.getComputedStyle(temp).color;
+  document.body.removeChild(temp);
+  
+  return rgbToHex(resolved);
+}
+
 function generateSummary(tasks, subjects) {
   const now = new Date();
   const weekEnd = new Date();
@@ -130,10 +152,33 @@ function renderSidebarSubjects() {
   listEl.innerHTML = subjects.map(s => {
     const n = countBySubject[s.id] ?? 0;
     const safeColor = s.color ? escapeHtml(s.color) : 'var(--color-text-info)';
+    const hexColor = resolveColorToHex(safeColor);
     return `<div class="nav-item subject-sidebar-item" data-subject-id="${escapeHtml(s.id)}">
-      <span class="nav-dot" style="background:${safeColor}"></span>${escapeHtml(s.name)}<span class="badge">${n}</span>
+      <input type="color" class="subject-color-picker" value="${hexColor}" data-subject-id="${escapeHtml(s.id)}" style="background:${safeColor}">
+      ${escapeHtml(s.name)}
+      <span class="badge">${n}</span>
     </div>`;
   }).join('');
+
+  listEl.querySelectorAll('.subject-color-picker').forEach(picker => {
+    picker.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    picker.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const subjectId = e.target.dataset.subjectId;
+      const newColor = e.target.value;
+      store.updateSubjectColorLocal(subjectId, newColor);
+    });
+
+    picker.addEventListener('change', (e) => {
+      e.stopPropagation();
+      const subjectId = e.target.dataset.subjectId;
+      const newColor = e.target.value;
+      store.updateSubjectColor(subjectId, newColor);
+    });
+  });
 }
 
 const newTaskModal = document.getElementById('new-task-modal');
@@ -286,18 +331,15 @@ function renderFocusTasks() {
     focusTaskList.innerHTML = '<div class="tasks-empty-state">No tasks due soon to focus on.</div>';
   } else {
     focusTaskList.innerHTML = dueSoon.map(t => {
-      const sub = subjects.find(s => s.id === t.subject_id) || subjects[0] || { short_code: 'Gen' };
-      let pillClass = '';
-      if(sub.short_code === 'CS') pillClass = 'pill-blue';
-      else if(sub.short_code === 'Maths') pillClass = 'pill-green';
-      else if(sub.short_code === 'English') pillClass = 'pill-purple';
-      else pillClass = 'pill-amber';
+      const sub = subjects.find(s => s.id === t.subject_id) || subjects[0] || { short_code: 'Gen', color: 'var(--color-text-info)' };
+      const safeColor = sub.color ? escapeHtml(sub.color) : 'var(--color-text-info)';
+      const pillStyle = `background: color-mix(in srgb, ${safeColor} 12%, transparent); color: ${safeColor}; border: 1px solid color-mix(in srgb, ${safeColor} 30%, transparent);`;
       
       return `
         <div class="focus-task-item" data-id="${t.id}">
           <div class="task-name">${t.title}</div>
           <div class="task-meta">
-            <span class="task-pill ${pillClass}">${sub.short_code}</span>
+            <span class="task-pill" style="${pillStyle}">${escapeHtml(sub.short_code)}</span>
           </div>
         </div>
       `;
@@ -314,13 +356,16 @@ function renderFocusTasks() {
   if (activeFocusTaskId) {
     const activeT = store.tasks.find(t => t.id === activeFocusTaskId);
     if (activeT) {
-      const sub = subjects.find(s => s.id === activeT.subject_id) || subjects[0] || { name: 'General' };
+      const sub = subjects.find(s => s.id === activeT.subject_id) || subjects[0] || { name: 'General', color: 'var(--color-text-info)' };
+      const safeColor = sub.color ? escapeHtml(sub.color) : 'var(--color-text-info)';
+      const pillStyle = `background: color-mix(in srgb, ${safeColor} 12%, transparent); color: ${safeColor}; border: 1px solid color-mix(in srgb, ${safeColor} 30%, transparent);`;
+      
       activeFocusTask.innerHTML = `
         <div class="task-info" style="width: 100%">
           <div class="task-name" style="font-size: 16px;">${activeT.title}</div>
           <div class="task-meta">
             <span class="task-pill pill-amber">Due ${formatDate(activeT.due_at)}</span>
-            <span class="task-pill">${sub.name}</span>
+            <span class="task-pill" style="${pillStyle}">${escapeHtml(sub.name)}</span>
           </div>
           <div style="margin-top: 12px; display: flex; gap: 8px;">
             <button class="btn btn-primary complete-focus-task-btn" data-id="${activeT.id}">Mark Done</button>
@@ -459,15 +504,12 @@ function renderTasks() {
     
       
     items.forEach(t => {
-      const sub = subjects.find(s => s.id === t.subject_id) || subjects[0];
+      const sub = subjects.find(s => s.id === t.subject_id) || subjects[0] || { short_code: 'Gen', color: 'var(--color-text-info)' };
       const isUrgent = t.priority === 'high' && title === '⚠ Due soon';
       const isDone = t.status === 'Done';
       
-      let pillClass = '';
-      if(sub.short_code === 'CS') pillClass = 'pill-blue';
-      else if(sub.short_code === 'Maths') pillClass = 'pill-green';
-      else if(sub.short_code === 'English') pillClass = 'pill-purple';
-      else pillClass = 'pill-amber';
+      const safeColor = sub.color ? escapeHtml(sub.color) : 'var(--color-text-info)';
+      const pillStyle = `background: color-mix(in srgb, ${safeColor} 12%, transparent); color: ${safeColor}; border: 1px solid color-mix(in srgb, ${safeColor} 30%, transparent);`;
       
       if (t._isEditing) {
         let subjectOptions = subjects.map(s => 
@@ -520,7 +562,7 @@ function renderTasks() {
               <div class="task-name">${t.title}</div>
               <div class="task-meta">
                 <span class="task-pill ${isDone ? 'pill-green' : (isUrgent ? 'pill-red' : 'pill-amber')}">${isDone ? 'Done' : 'Due ' + formatDate(t.due_at)}</span>
-                <span class="task-pill ${pillClass}">${sub.short_code}</span>
+                <span class="task-pill" style="${pillStyle}">${escapeHtml(sub.short_code)}</span>
               </div>
             </div>
             <div class="task-actions">
