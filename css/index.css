@@ -2519,3 +2519,260 @@ body {
   color: #ffcc66;
   font-weight: 600;
 }
+
+/* Responsive layout stabilization */
+.header-right {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.app > *,
+.topbar > *,
+.panel-header > div {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  body {
+    justify-content: flex-start;
+    padding: 16px;
+  }
+
+  .site-header {
+    flex-wrap: wrap;
+    gap: 12px 18px;
+  }
+
+  .header-nav {
+    order: 3;
+    flex: 1 1 100%;
+    gap: 20px;
+  }
+
+  .header-right {
+    margin-left: auto;
+  }
+
+  .app {
+    grid-template-columns: 216px minmax(0, 1fr);
+    grid-template-rows: minmax(640px, auto) auto;
+    height: auto;
+    min-height: 720px;
+    overflow: visible;
+  }
+
+  .main {
+    min-height: 640px;
+  }
+
+  .panel,
+  .panel.panel-collapsed {
+    grid-column: 1 / -1;
+    border-left: none;
+    border-top: 1px solid var(--color-border-tertiary);
+    min-height: 280px;
+    max-height: 520px;
+    overflow: hidden;
+  }
+
+  .panel.panel-collapsed {
+    min-height: 54px;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    padding: 12px;
+  }
+
+  .site-header {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .header-left {
+    gap: 8px;
+  }
+
+  .logo {
+    width: 36px;
+    height: 36px;
+  }
+
+  .site-title {
+    font-size: 18px;
+  }
+
+  .profile-btn {
+    padding: 8px 10px;
+  }
+
+  .header-nav {
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .header-nav a {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border-radius: var(--border-radius-sm);
+    background: var(--color-background-secondary);
+  }
+
+  .wrapper {
+    min-width: 0;
+  }
+
+  .app,
+  body.compact-view .app {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 0;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+  }
+
+  .sidebar {
+    order: 0;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    padding: 10px;
+    gap: 6px;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-tertiary);
+    scrollbar-width: thin;
+  }
+
+  .sidebar-header,
+  .sidebar-divider {
+    display: none;
+  }
+
+  #subjects-sidebar-list {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+
+  .sidebar .nav-item,
+  .sidebar .add-subject {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 9px 10px;
+  }
+
+  .sidebar .nav-item:hover {
+    transform: none;
+  }
+
+  .sidebar .nav-item.active::before {
+    top: auto;
+    bottom: 0;
+    left: 10%;
+    width: 80%;
+    height: 3px;
+  }
+
+  .main {
+    order: 1;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .cal-section,
+  .tasks-section,
+  .focus-section {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .tasks-section {
+    overflow: visible;
+  }
+
+  .cal-legend {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .task-actions {
+    opacity: 1;
+    flex-wrap: wrap;
+  }
+
+  .timer-container {
+    width: min(240px, 72vw);
+    height: min(240px, 72vw);
+  }
+
+  .panel,
+  .panel.panel-collapsed {
+    order: 2;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .panel-header,
+  .paste-actions,
+  .extract-preview {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .paste-zone {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .add-btn {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .site-footer {
+    margin-top: 12px;
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  #auth-modal > div,
+  #settings-modal > div {
+    max-width: calc(100vw - 32px);
+    padding: 20px !important;
+  }
+}
+
+@media (max-width: 460px) {
+  .topbar-title {
+    flex: 1 1 100%;
+  }
+
+  #label-filter {
+    order: 3;
+    flex: 1 1 100%;
+    margin: 0 !important;
+  }
+
+  .dashboard-greeting {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .quote-widget {
+    max-width: 100%;
+  }
+}
