@@ -13,8 +13,8 @@
 </head>
 <body>
   <!-- Auth Modal -->
-<div id="auth-modal" style="display:flex; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;">
-  <div style="background:white; border-radius:16px; padding:32px; width:360px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+<div id="auth-modal" class="modal-backdrop" style="display:flex; position:fixed; inset:0; z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-card" style="border-radius:16px; padding:32px; width:360px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
     
     <h2 id="auth-title" style="margin:0 0 8px; font-size:22px; font-weight:700;">Welcome back</h2>
     <p id="auth-subtitle" style="margin:0 0 24px; color:#666; font-size:14px;">Sign in to your StudyPlan account</p>
@@ -41,10 +41,13 @@
 </div>
 
   <header class="site-header">
-  <div class="header-left">
-    <img src="/logo.png" alt="Logo" class="logo">
-    <h1 class="site-title">StudyPlan</h1>
-  </div>
+    <div class="header-left">
+      <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Toggle Menu">
+        <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      </button>
+      <img src="/logo.png" alt="Logo" class="logo">
+      <h1 class="site-title">StudyPlan</h1>
+    </div>
 
   <nav class="header-nav">
     <a href="#">Dashboard</a>
@@ -245,8 +248,8 @@
 </footer>
 
 <!-- Settings Modal -->
-<div id="settings-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-  <div style="background:var(--color-background-primary); border:1px solid var(--color-border-tertiary); border-radius:16px; padding:32px; width:400px; box-shadow:var(--shadow-lg); color:var(--color-text-primary);">
+<div id="settings-modal" class="modal-backdrop" style="display:none; position:fixed; inset:0; z-index:9999; align-items:center; justify-content:center;">
+  <div class="modal-card" style="border-radius:16px; padding:32px; width:400px; box-shadow:var(--shadow-lg);">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
       <h2 style="margin:0; font-size:20px; font-weight:700;">Settings</h2>
       <button id="settings-close" style="background:none; border:none; font-size:24px; cursor:pointer; color:var(--color-text-secondary);">&times;</button>
@@ -506,8 +509,8 @@
   </div>
 </div>
 
-<div id="new-task-modal" class="modal-backdrop" style="display:none; position:fixed; inset:0;  z-index:9998; align-items:center; justify-content:center;">
-  <div class="modal-card" style=" border-radius:12px; padding:20px; width:320px; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+<div id="new-task-modal" class="modal-backdrop" style="display:none; position:fixed; inset:0; z-index:9998; align-items:center; justify-content:center;">
+  <div class="modal-card" style="border-radius:12px; padding:20px; width:320px; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
     <h3 style="margin:0 0 12px; font-size:18px; font-weight:600;">New task</h3>
 
     <label style="display:block; font-size:12px; margin-bottom:4px;">Subject</label>
