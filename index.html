@@ -330,6 +330,17 @@
     document.getElementById('auth-error').style.display = 'none';
   });
 
+  // Password validation function
+  function validatePassword(password) {
+    // Minimum 8 characters
+    const minLength = password.length >= 8;
+    // At least 1 capital letter
+    const hasCapital = /[A-Z]/.test(password);
+    // At least 1 special character
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    return minLength && hasCapital && hasSpecial;
+  }
+
   document.getElementById('auth-submit-btn').addEventListener('click', async () => {
     const email = document.getElementById('auth-email').value.trim();
     const password = document.getElementById('auth-password').value.trim();
@@ -369,6 +380,14 @@
         errorEl.style.color = 'red';
         errorEl.style.display = 'block';
       }
+      return;
+    }
+
+    if (!isForgotPassword && !validatePassword(password)) {
+      errorEl.textContent =
+        'Password must be at least 8 characters long, contain 1 capital letter and 1 special character.';
+      errorEl.style.color = 'red';
+      errorEl.style.display = 'block';
       return;
     }
 
