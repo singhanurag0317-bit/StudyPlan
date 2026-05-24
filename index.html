@@ -21,7 +21,11 @@
 
     <input id="auth-email" type="email" placeholder="Email address" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; margin-bottom:12px; box-sizing:border-box;">
     
-    <input id="auth-password" type="password" placeholder="Password" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; margin-bottom:20px; box-sizing:border-box;">
+    <input id="auth-password" type="password" placeholder="Password" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:14px; margin-bottom:12px; box-sizing:border-box;">
+
+    <div style="text-align: right; margin-bottom: 20px;">
+      <a id="forgot-password-link" href="#" style="color:#4f46e5; font-size:13px; font-weight:500; text-decoration:none;">Forgot Password?</a>
+    </div>
 
     <button id="auth-submit-btn" style="width:100%; padding:12px; background:#4f46e5; color:white; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer;">
       Sign In
@@ -293,15 +297,33 @@
   <script type="module" src="/js/app.js"></script>
   <script>
   let isLogin = true;
+  let isForgotPassword = false;
 
   document.getElementById('auth-toggle-btn').addEventListener('click', (e) => {
     e.preventDefault();
     isLogin = !isLogin;
+    isForgotPassword = false;
+    document.getElementById('auth-password').style.display = 'block';
+    document.getElementById('forgot-password-link').style.display = isLogin ? 'inline' : 'none';
     document.getElementById('auth-title').textContent = isLogin ? 'Welcome back' : 'Create account';
     document.getElementById('auth-subtitle').textContent = isLogin ? 'Sign in to your StudyPlan account' : 'Start planning your studies';
     document.getElementById('auth-submit-btn').textContent = isLogin ? 'Sign In' : 'Sign Up';
     document.getElementById('auth-toggle-text').textContent = isLogin ? "Don't have an account?" : 'Already have an account?';
     document.getElementById('auth-toggle-btn').textContent = isLogin ? 'Sign Up' : 'Sign In';
+    document.getElementById('auth-error').style.display = 'none';
+    document.getElementById('auth-error').style.color = 'red';
+  });
+
+  document.getElementById('forgot-password-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    isForgotPassword = true;
+    document.getElementById('auth-title').textContent = 'Reset Password';
+    document.getElementById('auth-subtitle').textContent = 'Enter your email to receive a reset link';
+    document.getElementById('auth-password').style.display = 'none';
+    document.getElementById('forgot-password-link').style.display = 'none';
+    document.getElementById('auth-submit-btn').textContent = 'Send Reset Link';
+    document.getElementById('auth-toggle-text').textContent = 'Remember your password?';
+    document.getElementById('auth-toggle-btn').textContent = 'Sign In';
     document.getElementById('auth-error').style.display = 'none';
   });
 
@@ -310,9 +332,40 @@
     const password = document.getElementById('auth-password').value.trim();
     const errorEl = document.getElementById('auth-error');
 
-    if (!email || !password) {
+    if (!email || (!password && !isForgotPassword)) {
       errorEl.textContent = 'Please fill in all fields';
+      errorEl.style.color = 'red';
       errorEl.style.display = 'block';
+      return;
+    }
+
+    if (isForgotPassword) {
+      try {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          errorEl.textContent = data.message || 'Password reset link sent';
+          errorEl.style.color = 'green';
+          errorEl.style.display = 'block';
+          setTimeout(() => {
+            isLogin = false; // so click toggles to true
+            document.getElementById('auth-toggle-btn').click();
+          }, 2000);
+        } else {
+          errorEl.textContent = data.error || 'An error occurred';
+          errorEl.style.color = 'red';
+          errorEl.style.display = 'block';
+        }
+      } catch (err) {
+        errorEl.textContent = 'Network error. Please try again.';
+        errorEl.style.color = 'red';
+        errorEl.style.display = 'block';
+      }
       return;
     }
 
@@ -328,6 +381,7 @@
 
       if (!res.ok) {
         errorEl.textContent = data.error || 'Something went wrong';
+        errorEl.style.color = 'red';
         errorEl.style.display = 'block';
         return;
       }
@@ -337,6 +391,7 @@
 
     } catch (err) {
       errorEl.textContent = 'Network error. Please try again.';
+      errorEl.style.color = 'red';
       errorEl.style.display = 'block';
     }
   });
