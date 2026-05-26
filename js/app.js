@@ -75,10 +75,12 @@ function generateSummary(tasks, subjects) {
 
 let currentMonthDate = new Date();
 let selectedDate = null;
-let currentView = 'calendar'; // 'calendar', 'all-tasks', 'archived'
+let currentView = 'calendar'; // 'calendar', 'all-tasks', 'archived', 'analytics', 'focus'
+let analyticsRange = 'week';
 
 const tasksSection = document.getElementById('tasks-section');
 const focusSection = document.getElementById('focus-section');
+const analyticsSection = document.getElementById('analytics-section');
 const extractPreview = document.getElementById('extract-preview');
 const pasteInput = document.getElementById('paste-input');
 const extractBtn = document.getElementById('extract-btn');
@@ -387,6 +389,184 @@ function formatDate(dateStr) {
   if (!dateStr) return 'No Date';
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+}
+
+function startOfDay(date) {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function addDays(date, days) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function getBestCompletionStreak(completedTasks) {
+  const completedDays = new Set(
+    completedTasks
+      .filter(task => task.due_at && !Number.isNaN(new Date(task.due_at).getTime()))
+      .map(task => dateKey(startOfDay(new Date(task.due_at))))
+  );
+
+  let best = 0;
+  completedDays.forEach(key => {
+    const [year, month, day] = key.split('-').map(Number);
+    const previous = dateKey(addDays(new Date(year, month, day), -1));
+    if (completedDays.has(previous)) return;
+
+    let streak = 0;
+    let cursor = new Date(year, month, day);
+    while (completedDays.has(dateKey(cursor))) {
+      streak += 1;
+      cursor = addDays(cursor, 1);
+    }
+    best = Math.max(best, streak);
+  });
+
+  return best;
+}
+
+function getAnalyticsBuckets(trackedTasks, completedTasks, range) {
+  const today = startOfDay(new Date());
+  const buckets = [];
+  const isMonth = range === 'month';
+  const totalBuckets = isMonth ? 4 : 7;
+  const daysPerBucket = isMonth ? 7 : 1;
+  const start = addDays(today, -(totalBuckets * daysPerBucket - 1));
+
+  for (let i = 0; i < totalBuckets; i++) {
+    const bucketStart = addDays(start, i * daysPerBucket);
+    const bucketEnd = addDays(bucketStart, daysPerBucket - 1);
+    const inBucket = task => {
+      if (!task.due_at) return false;
+      const dueDate = startOfDay(new Date(task.due_at));
+      return dueDate >= bucketStart && dueDate <= bucketEnd;
+    };
+    const total = trackedTasks.filter(inBucket).length;
+    const completed = completedTasks.filter(inBucket).length;
+
+    buckets.push({
+      total,
+      completed,
+      label: isMonth
+        ? bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : bucketStart.toLocaleDateString('en-US', { weekday: 'short' }),
+    });
+  }
+
+  return buckets;
+}
+
+function renderAnalytics() {
+  if (!analyticsSection) return;
+
+  const completedTasks = store.tasks.filter(task => task.status === 'Done');
+  const pendingTasks = store.tasks.filter(task => !task.archived && task.status !== 'Done');
+  const trackedTasks = [...completedTasks, ...pendingTasks];
+  const now = new Date();
+  const weekEnd = addDays(now, 7);
+  const overdueCount = pendingTasks.filter(task => task.due_at && new Date(task.due_at) < now).length;
+  const dueThisWeek = pendingTasks.filter(task => task.due_at && new Date(task.due_at) >= now && new Date(task.due_at) <= weekEnd).length;
+  const completionRate = trackedTasks.length ? Math.round((completedTasks.length / trackedTasks.length) * 100) : 0;
+  const bestStreak = getBestCompletionStreak(completedTasks);
+  const buckets = getAnalyticsBuckets(trackedTasks, completedTasks, analyticsRange);
+
+  const subjectMetrics = store.subjects.map(subject => {
+    const tasks = trackedTasks.filter(task => task.subject_id === subject.id);
+    const completed = tasks.filter(task => task.status === 'Done').length;
+    return {
+      name: subject.name,
+      color: subject.color || 'var(--color-text-info)',
+      total: tasks.length,
+      completed,
+      rate: tasks.length ? Math.round((completed / tasks.length) * 100) : 0,
+    };
+  }).filter(subject => subject.total > 0).sort((a, b) => b.rate - a.rate || b.total - a.total);
+
+  const strongestSubject = subjectMetrics[0];
+  const insights = [];
+  if (overdueCount > 0) insights.push(`${overdueCount} pending task${overdueCount === 1 ? '' : 's'} overdue and need attention.`);
+  if (dueThisWeek > 0) insights.push(`${dueThisWeek} task${dueThisWeek === 1 ? '' : 's'} due within the next seven days.`);
+  if (strongestSubject) insights.push(`${strongestSubject.name} currently leads at ${strongestSubject.rate}% completion.`);
+  if (trackedTasks.length && completionRate === 100) insights.push('All tracked tasks are complete. Keep the momentum going.');
+  if (!trackedTasks.length) insights.push('Add study tasks to begin tracking progress and trends.');
+
+  const subjectRows = subjectMetrics.length
+    ? subjectMetrics.map(subject => `
+        <div class="analytics-subject-row">
+          <div class="analytics-subject-summary">
+            <span class="analytics-subject-dot" style="background:${escapeHtml(subject.color)}"></span>
+            <span>${escapeHtml(subject.name)}</span>
+            <strong>${subject.completed}/${subject.total}</strong>
+          </div>
+          <div class="analytics-progress-track">
+            <div class="analytics-progress-fill" style="width:${subject.rate}%; background:${escapeHtml(subject.color)}"></div>
+          </div>
+        </div>
+      `).join('')
+    : '<p class="analytics-empty">No subject progress available yet.</p>';
+
+  const trendBars = buckets.map(bucket => {
+    const percent = bucket.total ? Math.round((bucket.completed / bucket.total) * 100) : 0;
+    return `
+      <div class="analytics-bar-column" title="${bucket.completed} of ${bucket.total} completed">
+        <div class="analytics-bar-track">
+          <div class="analytics-bar-fill" style="height:${percent}%"></div>
+        </div>
+        <strong>${bucket.completed}/${bucket.total}</strong>
+        <span>${bucket.label}</span>
+      </div>
+    `;
+  }).join('');
+
+  analyticsSection.innerHTML = `
+    <div class="analytics-heading">
+      <div>
+        <h2>Progress Analytics</h2>
+        <p>Completion and consistency across your study plan</p>
+      </div>
+      <div class="analytics-range" aria-label="Analytics timeframe">
+        <button type="button" class="analytics-range-btn ${analyticsRange === 'week' ? 'active' : ''}" data-range="week" aria-pressed="${analyticsRange === 'week'}">Week</button>
+        <button type="button" class="analytics-range-btn ${analyticsRange === 'month' ? 'active' : ''}" data-range="month" aria-pressed="${analyticsRange === 'month'}">Month</button>
+      </div>
+    </div>
+    <div class="analytics-kpis">
+      <div class="analytics-kpi analytics-rate">
+        <div class="analytics-ring" style="--progress:${completionRate}%"><strong>${completionRate}%</strong></div>
+        <span>Completion rate</span>
+      </div>
+      <div class="analytics-kpi"><strong>${completedTasks.length}</strong><span>Completed</span></div>
+      <div class="analytics-kpi"><strong>${pendingTasks.length}</strong><span>Pending</span></div>
+      <div class="analytics-kpi"><strong>${bestStreak}</strong><span>Best streak (days)</span></div>
+    </div>
+    <div class="analytics-grid">
+      <div class="analytics-panel analytics-trend">
+        <div class="analytics-panel-title">Completion trend</div>
+        <div class="analytics-chart">${trendBars}</div>
+      </div>
+      <div class="analytics-panel">
+        <div class="analytics-panel-title">Subject progress</div>
+        ${subjectRows}
+      </div>
+      <div class="analytics-panel analytics-insights">
+        <div class="analytics-panel-title">Insights</div>
+        <ul>${insights.map(insight => `<li>${escapeHtml(insight)}</li>`).join('')}</ul>
+      </div>
+    </div>
+  `;
+
+  analyticsSection.querySelectorAll('.analytics-range-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      analyticsRange = button.dataset.range;
+      renderAnalytics();
+    });
+  });
 }
 
 async function downloadData() {
@@ -795,7 +975,7 @@ function renderCalendar() {
   calTitle.textContent = `${monthNames[month]} ${year}`;
   
   const topbarTitle = document.querySelector('.topbar-title');
-  if(topbarTitle) topbarTitle.textContent = `${monthNames[month]} ${year}`;
+  if(topbarTitle && currentView !== 'analytics') topbarTitle.textContent = `${monthNames[month]} ${year}`;
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -970,6 +1150,7 @@ store.subscribe(renderExtraction);
 store.subscribe(renderCalendar);
 store.subscribe(renderFocusTasks);
 store.subscribe(renderSidebarSubjects);
+store.subscribe(renderAnalytics);
 
 document.addEventListener('DOMContentLoaded', () => {
   if (newSubjectColorsEl) {
@@ -1030,6 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const calendarBtn = document.getElementById('calendar-btn');
   const allTasksBtn = document.getElementById('all-tasks-btn');
+  const analyticsBtn = document.getElementById('analytics-btn');
   const archivedTasksBtn = document.getElementById('archived-tasks-btn');
   const focusModeBtn = document.getElementById('focus-mode-btn');
 
@@ -1043,7 +1225,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.cal-section').classList.remove('hidden');
     document.getElementById('tasks-section').classList.remove('hidden');
     document.getElementById('focus-section').classList.add('hidden');
+    analyticsSection?.classList.add('hidden');
     updateSidebarActive('calendar-btn');
+    renderCalendar();
     renderTasks();
   });
 
@@ -1052,16 +1236,34 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.cal-section').classList.add('hidden');
     document.getElementById('tasks-section').classList.remove('hidden');
     document.getElementById('focus-section').classList.add('hidden');
+    analyticsSection?.classList.add('hidden');
     updateSidebarActive('all-tasks-btn');
+    renderCalendar();
     renderTasks();
   });
+
+  if (analyticsBtn) {
+    analyticsBtn.addEventListener('click', () => {
+      currentView = 'analytics';
+      document.querySelector('.cal-section').classList.add('hidden');
+      document.getElementById('tasks-section').classList.add('hidden');
+      document.getElementById('focus-section').classList.add('hidden');
+      analyticsSection?.classList.remove('hidden');
+      updateSidebarActive('analytics-btn');
+      const topbarTitle = document.querySelector('.topbar-title');
+      if (topbarTitle) topbarTitle.textContent = 'Progress Analytics';
+      renderAnalytics();
+    });
+  }
 
   archivedTasksBtn.addEventListener('click', () => {
     currentView = 'archived';
     document.querySelector('.cal-section').classList.add('hidden');
     document.getElementById('tasks-section').classList.remove('hidden');
     document.getElementById('focus-section').classList.add('hidden');
+    analyticsSection?.classList.add('hidden');
     updateSidebarActive('archived-tasks-btn');
+    renderCalendar();
     renderTasks();
   });
 
@@ -1071,7 +1273,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelector('.cal-section').classList.add('hidden');
       document.getElementById('tasks-section').classList.add('hidden');
       document.getElementById('focus-section').classList.remove('hidden');
+      analyticsSection?.classList.add('hidden');
       updateSidebarActive('focus-mode-btn');
+      renderCalendar();
       renderFocusTasks();
     });
   }
